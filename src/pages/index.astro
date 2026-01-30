@@ -2,90 +2,68 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="Vind Refurbished - iPhones, iPads & Meer">
+<Layout title="Vind Refurbished">
   <main class="max-w-7xl mx-auto px-4 py-8">
     <h1 class="text-4xl font-black mb-8 text-gray-900">Vind Refurbished</h1>
-    
-    <!-- Zoekbalk -->
     <div id="searchbox" class="mb-8"></div>
-
     <div class="flex flex-col md:flex-row gap-10">
-      <!-- Sidebar Filters (Links) -->
       <aside class="w-full md:w-72 space-y-8">
-        <div>
-          <h3 class="font-bold text-gray-400 uppercase text-xs tracking-widest mb-4">Categorie</h3>
-          <div id="category-filter"></div>
-        </div>
-        <div>
-          <h3 class="font-bold text-gray-400 uppercase text-xs tracking-widest mb-4">Merk</h3>
-          <div id="brand-filter"></div>
-        </div>
-        <div>
-          <h3 class="font-bold text-gray-400 uppercase text-xs tracking-widest mb-4">Conditie</h3>
-          <div id="condition-filter"></div>
-        </div>
+        <div id="category-filter"></div>
+        <div id="brand-filter"></div>
+        <div id="condition-filter"></div>
       </aside>
-
-      <!-- Resultaten Lijst (Rechts) -->
       <div class="flex-grow">
         <div id="hits"></div>
       </div>
     </div>
   </main>
+
+  <div id="meili-data" 
+       data-host={import.meta.env.PUBLIC_MEILI_HOST} 
+       data-key={import.meta.env.PUBLIC_MEILI_SEARCH_KEY}>
+  </div>
 </Layout>
 
-<!-- We voegen dit element toe om de keys veilig door te geven aan het inline script -->
-<div id="meili-data" 
-     data-host={import.meta.env.PUBLIC_MEILI_HOST} 
-     data-key={import.meta.env.PUBLIC_MEILI_SEARCH_KEY}>
-</div>
+<script>
+  import { instantMeiliSearch } from '@meilisearch/instant-meilisearch';
+  import instantsearch from 'instantsearch.js';
+  import { searchBox, hits, refinementList } from 'instantsearch.js/es/widgets';
 
-<!-- De juiste links naar de scripts -->
-<script is:inline src="https://cdn.jsdelivr.net/npm/@meilisearch/instant-meilisearch/dist/instant-meilisearch.umd.min.js"></script>
-<script is:inline src="https://cdn.jsdelivr.net/npm/instantsearch.js@4"></script>
+  const dataEl = document.getElementById('meili-data');
+  if (dataEl) {
+    const searchClient = instantMeiliSearch(dataEl.dataset.host, dataEl.dataset.key);
 
-<script is:inline>
-  const host = document.getElementById('meili-data').dataset.host;
-  const key = document.getElementById('meili-data').dataset.key;
+    const search = instantsearch({
+      indexName: 'products',
+      searchClient,
+    });
 
-  const searchClient = instantMeiliSearch(host, key);
-
-  const search = instantsearch({
-    indexName: 'products',
-    searchClient,
-  });
-
-  search.addWidgets([
-    instantsearch.widgets.searchBox({ 
-      container: '#searchbox', 
-      placeholder: 'Zoek bijv. iPhone 15 Pro...' 
-    }),
-    
-    instantsearch.widgets.refinementList({ container: '#category-filter', attribute: 'category_primary' }),
-    instantsearch.widgets.refinementList({ container: '#brand-filter', attribute: 'brand' }),
-    instantsearch.widgets.refinementList({ container: '#condition-filter', attribute: 'offers.condition' }),
-
-    instantsearch.widgets.hits({
-      container: '#hits',
-      templates: {
-        item: (hit) => `
-          <div class="flex items-center gap-6 bg-white border border-gray-200 p-5 rounded-2xl mb-4 shadow-sm">
-            <div class="w-24 h-24 flex-shrink-0 flex items-center justify-center p-2">
-              <img src="https://img.findrefurbished.com/${hit.master_id}.png" class="max-h-full" alt="${hit.title_h1}" />
+    search.addWidgets([
+      searchBox({ container: '#searchbox', placeholder: 'Zoek op model...' }),
+      refinementList({ container: '#category-filter', attribute: 'category_primary' }),
+      refinementList({ container: '#brand-filter', attribute: 'brand' }),
+      refinementList({ container: '#condition-filter', attribute: 'offers.condition' }),
+      hits({
+        container: '#hits',
+        templates: {
+          item: (hit) => `
+            <div class="flex items-center gap-6 bg-white border p-5 rounded-2xl mb-4 shadow-sm">
+              <div class="w-24 h-24 flex-shrink-0">
+                <img src="https://img.findrefurbished.com{hit.master_id}.png" class="max-h-full" />
+              </div>
+              <div class="flex-grow">
+                <h2 class="text-xl font-bold">${hit.title_h1}</h2>
+                <p class="text-gray-500">${hit.brand}</p>
+              </div>
+              <div class="text-right">
+                <div class="text-3xl font-black text-blue-600">€${hit.min_price.toFixed(2)}</div>
+                <a href="/product/${hit.variant_slug}" class="inline-block mt-3 bg-blue-600 text-white px-6 py-2 rounded-xl font-bold">Bekijk</a>
+              </div>
             </div>
-            <div class="flex-grow">
-              <h2 class="text-xl font-bold text-gray-900">${hit.title_h1}</h2>
-              <p class="text-gray-500 text-sm uppercase">${hit.brand} • ${hit.category_primary}</p>
-            </div>
-            <div class="text-right">
-              <div class="text-3xl font-black text-blue-600">€${hit.min_price.toFixed(2)}</div>
-              <a href="/product/${hit.variant_slug}" class="inline-block mt-3 bg-blue-600 text-white px-6 py-2 rounded-xl font-bold">Bekijk</a>
-            </div>
-          </div>
-        `,
-      },
-    }),
-  ]);
-
-  search.start();
+          `,
+        },
+      }),
+    ]);
+    search.start();
+  }
 </script>
