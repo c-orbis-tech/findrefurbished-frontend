@@ -1,0 +1,15 @@
+---
+const { title } = Astro.props;
+---
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title}</title>
+    <!-- We laden de InstantSearch CSS direct voor de styling van de filters -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net">
+  </head>
+  <body class="bg-gray-50">
+    <slot />
+  </body>
+</html>
