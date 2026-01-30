@@ -49,7 +49,10 @@
         },
       }),
     ]);
-
+    // DEBUG: Kijk in de console wat er gebeurt
+search.on('render', () => {
+  console.log('Zoekmachine render uitgevoerd. Aantal resultaten:', search.helper?.lastResults?.nbHits);
+});
     search.start();
   }
 
