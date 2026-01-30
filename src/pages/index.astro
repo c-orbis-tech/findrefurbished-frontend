@@ -1,53 +1,33 @@
----
-import Layout from '../layouts/Layout.astro';
----
-
-<Layout title="Vind Refurbished">
-  <main class="max-w-7xl mx-auto px-4 py-8">
-    <h1 class="text-4xl font-black mb-8 text-gray-900">Vind Refurbished</h1>
-    
-    <div id="searchbox" class="mb-8"></div>
-
-    <div class="flex flex-col md:flex-row gap-10">
-      <aside class="w-full md:w-72 space-y-8">
-        <div id="category-filter"></div>
-        <div id="brand-filter"></div>
-        <div id="condition-filter"></div>
-      </aside>
-
-      <div class="flex-grow">
-        <div id="hits"></div>
-      </div>
-    </div>
-  </main>
-
-  <div id="meili-data" 
-       data-host={import.meta.env.PUBLIC_MEILI_HOST} 
-       data-key={import.meta.env.PUBLIC_MEILI_SEARCH_KEY}>
-  </div>
-</Layout>
-
 <script is:inline src="https://cdn.jsdelivr.net/npm/@meilisearch/instant-meilisearch/dist/instant-meilisearch.umd.min.js"></script>
 <script is:inline src="https://cdn.jsdelivr.net/npm/instantsearch.js@4"></script>
 
 <script is:inline>
-  function initSearch() {
+  function startSearch() {
     const dataEl = document.getElementById('meili-data');
     if (!dataEl) return;
+
+    // Check of de libraries geladen zijn, zo niet: wacht 100ms
+    if (typeof instantMeiliSearch === 'undefined' || typeof instantsearch === 'undefined') {
+      setTimeout(startSearch, 100);
+      return;
+    }
 
     const host = dataEl.dataset.host;
     const key = dataEl.dataset.key;
 
-    if (typeof instantMeiliSearch === 'undefined') return;
-
+    // Forceer de search method
     const searchClient = instantMeiliSearch(host, key);
+
     const search = instantsearch({
       indexName: 'products',
-      searchClient,
+      searchClient: searchClient,
     });
 
     search.addWidgets([
-      instantsearch.widgets.searchBox({ container: '#searchbox' }),
+      instantsearch.widgets.searchBox({ 
+        container: '#searchbox',
+        placeholder: 'Zoek op model (bijv. iPhone 15)...' 
+      }),
       instantsearch.widgets.refinementList({ container: '#category-filter', attribute: 'category_primary' }),
       instantsearch.widgets.refinementList({ container: '#brand-filter', attribute: 'brand' }),
       instantsearch.widgets.refinementList({ container: '#condition-filter', attribute: 'offers.condition' }),
@@ -55,15 +35,19 @@ import Layout from '../layouts/Layout.astro';
         container: '#hits',
         templates: {
           item: (hit) => `
-            <div class="flex items-center gap-6 bg-white border p-5 rounded-2xl mb-4 shadow-sm">
-              <div class="w-24 h-24 flex-shrink-0 flex items-center justify-center">
-                <img src="https://img.findrefurbished.com/${hit.master_id}.png" class="max-h-full" />
+            <div class="flex items-center gap-6 bg-white border border-gray-200 p-5 rounded-2xl mb-4 shadow-sm hover:border-blue-500 transition-all">
+              <div class="w-24 h-24 flex-shrink-0 flex items-center justify-center p-2">
+                <img src="https://img.findrefurbished.com/${hit.master_id}.png" class="max-h-full" alt="${hit.title_h1}" />
               </div>
               <div class="flex-grow">
-                <h2 class="text-xl font-bold">${hit.title_h1}</h2>
-                <p class="text-gray-500">${hit.brand}</p>
+                <h2 class="text-xl font-bold text-gray-900">${hit.title_h1}</h2>
+                <p class="text-gray-500 text-sm uppercase font-semibold">${hit.brand} • ${hit.category_primary}</p>
               </div>
-              <div class="text-right text-2xl font-black text-blue-600">€${hit.min_price}</div>
+              <div class="text-right">
+                <div class="text-xs text-gray-400 font-bold uppercase tracking-wider">Vanaf</div>
+                <div class="text-3xl font-black text-blue-600">€${hit.min_price.toFixed(2)}</div>
+                <a href="/product/${hit.variant_slug}" class="inline-block mt-3 bg-blue-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-800">Bekijk</a>
+              </div>
             </div>
           `,
         },
@@ -72,5 +56,12 @@ import Layout from '../layouts/Layout.astro';
 
     search.start();
   }
-  document.addEventListener('DOMContentLoaded', initSearch);
+
+  // Start zodra de DOM klaar is
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startSearch);
+  } else {
+    startSearch();
+  }
 </script>
+
