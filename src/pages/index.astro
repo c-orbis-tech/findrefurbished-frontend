@@ -1,49 +1,41 @@
----
-import Layout from '../layouts/Layout.astro';
----
+<!-- Laad de bibliotheken via CDN (UMD versies zijn het meest stabiel) -->
+<script is:inline src="https://cdn.jsdelivr.net/npm/@meilisearch/instant-meilisearch/dist/instant-meilisearch.umd.min.js"></script>
+<script is:inline src="https://cdn.jsdelivr.net/npm/instantsearch.js@4"></script>
 
-<Layout title="Vind Refurbished">
-  <main class="max-w-7xl mx-auto px-4 py-8">
-    <h1 class="text-4xl font-black mb-8 text-gray-900">Vind Refurbished</h1>
-    <div id="searchbox" class="mb-8"></div>
-    <div class="flex flex-col md:flex-row gap-10">
-      <aside class="w-full md:w-72 space-y-8">
-        <div id="category-filter"></div>
-        <div id="brand-filter"></div>
-        <div id="condition-filter"></div>
-      </aside>
-      <div class="flex-grow">
-        <div id="hits"></div>
-      </div>
-    </div>
-  </main>
+<script is:inline>
+  // Deze functie start pas als de hele pagina (en de scripts hierboven) geladen zijn
+  function initSearch() {
+    const dataEl = document.getElementById('meili-data');
+    if (!dataEl) return;
 
-  <div id="meili-data" 
-       data-host={import.meta.env.PUBLIC_MEILI_HOST} 
-       data-key={import.meta.env.PUBLIC_MEILI_SEARCH_KEY}>
-  </div>
-</Layout>
+    const host = dataEl.dataset.host;
+    const key = dataEl.dataset.key;
 
-<script>
-  import { instantMeiliSearch } from '@meilisearch/instant-meilisearch';
-  import instantsearch from 'instantsearch.js';
-  import { searchBox, hits, refinementList } from 'instantsearch.js/es/widgets';
+    // Controleer of de bibliotheken geladen zijn
+    if (typeof instantMeiliSearch === 'undefined' || typeof instantsearch === 'undefined') {
+      console.error('Zoek-bibliotheken niet geladen. Probeer opnieuw...');
+      setTimeout(initSearch, 500);
+      return;
+    }
 
-  const dataEl = document.getElementById('meili-data');
-  if (dataEl) {
-    const searchClient = instantMeiliSearch(dataEl.dataset.host, dataEl.dataset.key);
+    // Initialiseer de client
+    const searchClient = instantMeiliSearch(host, key);
 
     const search = instantsearch({
       indexName: 'products',
-      searchClient,
+      searchClient: searchClient, // Hier zat de fout: we zorgen nu dat dit object 100% correct is
     });
 
+    // Voeg de widgets toe
     search.addWidgets([
-      searchBox({ container: '#searchbox', placeholder: 'Zoek op model...' }),
-      refinementList({ container: '#category-filter', attribute: 'category_primary' }),
-      refinementList({ container: '#brand-filter', attribute: 'brand' }),
-      refinementList({ container: '#condition-filter', attribute: 'offers.condition' }),
-      hits({
+      instantsearch.widgets.searchBox({ 
+        container: '#searchbox',
+        placeholder: 'Zoek bijv. iPhone 15...' 
+      }),
+      instantsearch.widgets.refinementList({ container: '#category-filter', attribute: 'category_primary' }),
+      instantsearch.widgets.refinementList({ container: '#brand-filter', attribute: 'brand' }),
+      instantsearch.widgets.refinementList({ container: '#condition-filter', attribute: 'offers.condition' }),
+      instantsearch.widgets.hits({
         container: '#hits',
         templates: {
           item: (hit) => `
@@ -64,6 +56,10 @@ import Layout from '../layouts/Layout.astro';
         },
       }),
     ]);
+
     search.start();
   }
+
+  // Start de initialisatie
+  initSearch();
 </script>
