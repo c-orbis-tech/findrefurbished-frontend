@@ -29,11 +29,12 @@ const product = (searchData.hits && searchData.hits.length > 0) ? searchData.hit
 if (!product) {
   // Voor debuggen kun je deze regel tijdelijk veranderen in: 
   // throw new Error(`Product niet gevonden voor slug: ${slug}`);
-  Astro.redirect('/404');
+  return Astro.redirect('/404');
 }
 
 const sortedOffers = product.offers?.sort((a, b) => a.price - b.price) || [];
 ---
+
 
 <Layout title={`${product.title_h1} Vergelijken - Vind Refurbished`}>
   <main class="max-w-5xl mx-auto px-4 py-12">
