@@ -12,11 +12,16 @@ let product = null;
 // 2. Voer de zoekopdracht uit op de server
 try {
   const response = await fetch(`${host}/indexes/products/search`, {
-    method: 'POST',
-         headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.MEILI_SERVER_KEY || import.meta.env.PUBLIC_MEILI_SEARCH_KEY}`
-    },
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer Test543' // <-- TYP HIER JE ECHTE KEY (bijv. Test543)
+  },
+  body: JSON.stringify({
+    filter: `variant_slug = "${slug}"`,
+    limit: 1
+  })
+});
 
 
     body: JSON.stringify({
