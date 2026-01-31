@@ -2,32 +2,11 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="Vind Refurbished - Vergelijk alle prijzen">
-  <main class="max-w-7xl mx-auto px-4 py-8">
-    <h1 class="text-4xl font-black mb-8 text-gray-900 leading-tight tracking-tight">Vind Refurbished</h1>
-    
-    <div id="searchbox" class="mb-8"></div>
-
-    <div class="flex flex-col md:flex-row gap-10">
-      <aside class="w-full md:w-72 space-y-8">
-        <div class="filter-section border-b pb-6 border-gray-100">
-          <h3 class="font-bold text-gray-400 uppercase text-[10px] tracking-widest mb-4 italic text-right">Categorie</h3>
-          <div id="category-filter"></div>
-        </div>
-        <div class="filter-section border-b pb-6 border-gray-100">
-          <h3 class="font-bold text-gray-400 uppercase text-[10px] tracking-widest mb-4 italic text-right">Merk</h3>
-          <div id="brand-filter"></div>
-        </div>
-        <div class="filter-section">
-          <h3 class="font-bold text-gray-400 uppercase text-[10px] tracking-widest mb-4 italic text-right">Conditie</h3>
-          <div id="condition-filter"></div>
-        </div>
-      </aside>
-
-      <div class="flex-grow">
-        <div id="hits"></div>
-      </div>
-    </div>
+<Layout title="Debug - Vind Refurbished">
+  <main class="max-w-4xl mx-auto p-10">
+    <h1 class="text-2xl font-bold mb-5">Zoekmachine Debug Mode</h1>
+    <div id="searchbox" class="mb-5 border p-2"></div>
+    <div id="hits"></div>
   </main>
 
   <div id="meili-data" 
@@ -36,61 +15,59 @@ import Layout from '../layouts/Layout.astro';
   </div>
 </Layout>
 
-<script>
-  import { instantMeiliSearch } from '@meilisearch/instant-meilisearch';
-  import instantsearch from 'instantsearch.js';
-  import { searchBox, hits, refinementList } from 'instantsearch.js/es/widgets';
+<script is:inline src="https://cdn.jsdelivr.net/npm/@meilisearch/instant-meilisearch/dist/instant-meilisearch.umd.min.js"></script>
+<script is:inline src="https://cdn.jsdelivr.net/npm/instantsearch.js@4"></script>
 
-  function init() {
+<script is:inline>
+  function testMeili() {
     const dataEl = document.getElementById('meili-data');
-    if (!dataEl || !dataEl.dataset.host) return;
+    const host = dataEl.dataset.host;
+    const key = dataEl.dataset.key;
 
-    const { host, key } = dataEl.dataset;
-    const meiliSearchClient = instantMeiliSearch(host, key);
+    console.log("--- DEBUG START ---");
+    console.log("Host:", host);
+    console.log("Key (eerste 5):", key.substring(0, 5) + "...");
 
-    // De wrapper fix om de "search is not a function" error te voorkomen
-    const searchClient = {
-      search: (requests) => meiliSearchClient.search(requests),
-      searchForFacetValues: (requests) => meiliSearchClient.searchForFacetValues ? meiliSearchClient.searchForFacetValues(requests) : undefined
-    };
+    if (typeof instantMeiliSearch === 'undefined') {
+      console.error("ERROR: MeiliSearch bibliotheek niet geladen!");
+      return;
+    }
+
+    const searchClient = instantMeiliSearch(host, key);
 
     const search = instantsearch({
       indexName: 'products',
       searchClient: searchClient,
-      future: { preserveSharedStateOnUnmount: true }
     });
 
     search.addWidgets([
-      searchBox({ container: '#searchbox', placeholder: 'Zoek op model...' }),
-      refinementList({ container: '#category-filter', attribute: 'category_primary' }),
-      refinementList({ container: '#brand-filter', attribute: 'brand' }),
-      refinementList({ container: '#condition-filter', attribute: 'offers.condition' }),
-      hits({
+      instantsearch.widgets.searchBox({ container: '#searchbox' }),
+      instantsearch.widgets.hits({
         container: '#hits',
         templates: {
-          empty: (results) => `<p class="p-10 text-center">Geen producten gevonden voor "${results.query}".</p>`,
-          item: (hit) => `
-            <div class="flex items-center gap-6 bg-white border border-gray-200 p-5 rounded-2xl mb-4 shadow-sm hover:border-blue-500 transition-all group">
-              <div class="w-24 h-24 flex-shrink-0 flex items-center justify-center p-2 bg-gray-50 rounded-xl">
-                <img src="https://img.findrefurbished.com/${hit.master_id}.png" class="max-h-full" alt="${hit.title_h1}" onerror="this.src='https://placehold.co/200x200?text=Geen+Foto'" />
-              </div>
-              <div class="flex-grow">
-                <h2 class="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">${hit.title_h1}</h2>
-                <p class="text-gray-400 text-[11px] uppercase font-bold tracking-widest mt-1">${hit.brand} • ${hit.category_primary}</p>
-              </div>
-              <div class="text-right flex flex-col justify-center min-w-[130px]">
-                <div class="text-3xl font-black text-blue-600">€${Number(hit.min_price).toFixed(2)}</div>
-                <a href="/product/${hit.variant_slug}" class="inline-block mt-3 bg-blue-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-800 transition-colors text-center text-sm">Bekijk Deals</a>
-              </div>
-            </div>
-          `,
-        },
-      }),
+          item: (hit) => `<div>✅ Gevonden: ${hit.title_h1 || hit.title}</div>`,
+          empty: '❌ Geen resultaten gevonden in de index "products".'
+        }
+      })
     ]);
 
-    search.start();
+    // Luister naar wat Meilisearch echt teruggeeft
+    search.on('render', () => {
+      const results = search.helper.lastResults;
+      if (results) {
+        console.log("Meilisearch antwoord:", results);
+        console.log("Aantal producten gevonden:", results.nbHits);
+      }
+    });
+
+    try {
+      search.start();
+      console.log("Zoekmachine gestart!");
+    } catch (err) {
+      console.error("Crash tijdens starten:", err);
+    }
   }
 
-  document.addEventListener('astro:page-load', init);
-  init();
+  // Wacht even tot alles echt geladen is
+  setTimeout(testMeili, 1000);
 </script>
