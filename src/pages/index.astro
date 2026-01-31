@@ -66,18 +66,21 @@ import Layout from '../layouts/Layout.astro';
       refinementList({ container: '#brand-filter', attribute: 'brand' }),
       hits({
         container: '#hits',
-        templates: {
+                templates: {
           item: (hit) => `
             <div class="p-4 border mb-2 bg-white rounded-xl shadow-sm flex items-center gap-4">
-              <img src="https://img.findrefurbished.com/${hit.master_id}.png" class="w-12 h-12 object-contain" />
+              <img src="https://img.findrefurbished.com{hit.master_id}.png" class="w-16 h-16 object-contain" onerror="this.src='https://placehold.co'" />
               <div class="flex-grow">
-                <div class="font-bold text-gray-900">${hit.title_h1}</div>
-                <div class="text-sm text-gray-500">${hit.brand}</div>
+                <div class="font-bold text-gray-900 leading-tight">${hit.title_h1}</div>
+                <div class="text-xs text-gray-400 uppercase font-bold tracking-wider mt-1">${hit.brand}</div>
               </div>
-              <div class="font-black text-blue-600">€${hit.min_price}</div>
+              <div class="text-right">
+                <div class="text-2xl font-black text-blue-600 leading-none">€${Number(hit.min_price).toFixed(2)}</div>
+                <a href="/product/${hit.variant_slug}" class="text-[10px] text-blue-500 font-bold hover:underline">Bekijk deals</a>
+              </div>
             </div>
           `,
-          empty: '<div class="p-10 text-center">❌ Geen producten gevonden.</div>'
+          empty: '<div class="p-10 text-center text-gray-500 italic">❌ Geen producten gevonden.</div>'
         }
       })
     ]);
