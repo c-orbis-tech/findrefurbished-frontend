@@ -17,9 +17,10 @@ try {
       'Authorization': `Bearer ${key}`
     },
     body: JSON.stringify({
-      filter: `variant_slug = "${slug}"`,
-      limit: 1
-    })
+  // Gebruik enkelvoudige quotes rond de slug
+  filter: `variant_slug = '${slug}'`, 
+  limit: 1
+})
   });
 
   const searchData = await response.json();
