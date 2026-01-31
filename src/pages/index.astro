@@ -60,10 +60,20 @@ import Layout from '../layouts/Layout.astro';
     // 3. DE FIX: Handmatige wrapper om de 'search method' error te voorkomen
     const searchClient = {
       search(requests) {
-        return rawClient.search(requests);
+        // We proberen alle mogelijke schuilplaatsen van de search-functie
+        const fn = rawClient.search 
+          || (rawClient.instantMeiliSearch && rawClient.instantMeiliSearch.search)
+          || (window.instantMeiliSearch && window.instantMeiliSearch.search);
+        
+        if (typeof fn !== 'function') {
+          return Promise.reject(new Error("Search method not found"));
+        }
+        return fn(requests);
       },
       searchForFacetValues(requests) {
-        return rawClient.searchForFacetValues ? rawClient.searchForFacetValues(requests) : undefined;
+        const fn = rawClient.searchForFacetValues 
+          || (rawClient.instantMeiliSearch && rawClient.instantMeiliSearch.searchForFacetValues);
+        return fn ? fn(requests) : Promise.resolve([]);
       }
     };
 
