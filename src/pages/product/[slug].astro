@@ -16,7 +16,7 @@ try {
       headers: {
     'Content-Type': 'application/json',
     // We gebruiken nu backticks om zeker te zijn dat de spatie er staat
-    'Authorization': `Bearer ${import.meta.env.PUBLIC_MEILI_SEARCH_KEY}` 
+    'Authorization': Bearer ${import.meta.env.MEILI_SERVER_KEY || import.meta.env.PUBLIC_MEILI_SEARCH_KEY}`` 
   },
 
     body: JSON.stringify({
