@@ -34,36 +34,33 @@ import Layout from '../layouts/Layout.astro';
       return;
     }
 
-            // De juiste manier om de adapter te initialiseren vanuit de UMD-bundel
+            // De kogelvrije manier om de adapter te initialiseren
     let meiliAdapter;
     try {
-      if (typeof instantMeiliSearch.instantMeiliSearch === 'function') {
-        meiliAdapter = instantMeiliSearch.instantMeiliSearch(host, key);
-      } else {
-        meiliAdapter = instantMeiliSearch(host, key);
+      const factory = (typeof instantMeiliSearch.instantMeiliSearch === 'function') 
+        ? instantMeiliSearch.instantMeiliSearch 
+        : instantMeiliSearch;
+      
+      meiliAdapter = factory(host, key);
+      
+      // Als de search methode nog steeds ontbreekt, proberen we hem handmatig te binden
+      if (typeof meiliAdapter.search !== 'function' && meiliAdapter.instantMeiliSearch) {
+          meiliAdapter = meiliAdapter.instantMeiliSearch;
       }
     } catch (e) {
       console.error("Adapter crash:", e);
       return;
     }
 
-    console.log("Adapter gecreëerd:", meiliAdapter);
+    console.log("Gevalideerde adapter:", meiliAdapter);
 
-    // ÉÉN searchClient wrapper die de adapter gebruikt
+    // De wrapper die de search methode expliciet aanroept
     const searchClient = {
-      search(requests) {
-        return meiliAdapter.search(requests);
-      },
-      searchForFacetValues(requests) {
+      search: (requests) => meiliAdapter.search(requests),
+      searchForFacetValues: (requests) => {
         return meiliAdapter.searchForFacetValues ? meiliAdapter.searchForFacetValues(requests) : undefined;
       }
     };
-
-    const search = instantsearch({
-      indexName: 'products',
-      searchClient: searchClient,
-      future: { preserveSharedStateOnUnmount: true }
-    });
 
     search.addWidgets([
       instantsearch.widgets.searchBox({ container: '#searchbox' }),
