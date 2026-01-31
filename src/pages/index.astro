@@ -32,51 +32,46 @@ import Layout from '../layouts/Layout.astro';
   </div>
 </Layout>
 
-<script>
-  import { instantMeiliSearch } from '@meilisearch/instant-meilisearch';
-  import instantsearch from 'instantsearch.js';
-  import { searchBox, hits, refinementList } from 'instantsearch.js/es/widgets';
+<script is:inline src="https://cdn.jsdelivr.net/npm/@meilisearch/instant-meilisearch/dist/instant-meilisearch.umd.min.js"></script>
+<script is:inline src="https://cdn.jsdelivr.net/npm/instantsearch.js@4"></script>
 
-  function init() {
+<script is:inline>
+  function startSearch() {
     const dataEl = document.getElementById('meili-data');
     if (!dataEl) return;
 
-    const host = dataEl.dataset.host?.replace('http://', 'https://');
+    const host = dataEl.dataset.host.replace('http://', 'https://');
     const key = dataEl.dataset.key;
-    if (!host || !key) return;
 
-    const client = instantMeiliSearch(host, key);
+    // Check of de libraries geladen zijn in het window object
+    const IMS = window.instantMeiliSearch?.instantMeiliSearch || window.instantMeiliSearch;
+    if (typeof IMS !== 'function') {
+      setTimeout(startSearch, 100);
+      return;
+    }
 
-    // De proxy-client die de Astro-fout voorkomt
-    const searchClient = {
-      ...client,
-      search(requests) {
-        if (requests.every(({ params }) => !params.query)) {
-          return Promise.resolve({
-            results: requests.map(() => ({
-              hits: [], nbHits: 0, nbPages: 0, page: 0, processingTimeMS: 0, hitsPerPage: 0, exhaustiveNbHits: true, query: '', params: '', index: '',
-            })),
-          });
-        }
-        return client.search(requests);
-      },
-    };
+    const searchClient = IMS(host, key);
 
     const search = instantsearch({
       indexName: 'products',
-      searchClient,
-      future: { preserveSharedStateOnUnmount: true }
+      searchClient: searchClient,
     });
 
     search.addWidgets([
-      searchBox({ container: '#searchbox', placeholder: 'Zoek op model...' }),
-      refinementList({ container: '#brand-filter', attribute: 'brand' }),
-      hits({
+      instantsearch.widgets.searchBox({ 
+        container: '#searchbox',
+        placeholder: 'Zoek op model...' 
+      }),
+      instantsearch.widgets.refinementList({ 
+        container: '#brand-filter', 
+        attribute: 'brand' 
+      }),
+      instantsearch.widgets.hits({
         container: '#hits',
         templates: {
           item: (hit) => `
-            <div class="p-4 border mb-2 bg-white rounded-xl shadow-sm flex items-center gap-4 group hover:border-blue-500 transition-colors">
-              <img src="https://img.findrefurbished.com/${hit.master_id}.png" class="w-16 h-16 object-contain" onerror="this.src='https://placehold.co'" />
+            <div class="p-4 border mb-2 bg-white rounded-xl shadow-sm flex items-center gap-4">
+              <img src="https://img.findrefurbished.com/${hit.master_id}.png" class="w-16 h-16 object-contain" onerror="this.src='https://placehold.co/200x200?text=Geen+Foto'" />
               <div class="flex-grow">
                 <div class="font-bold text-gray-900 leading-tight">${hit.title_h1}</div>
                 <div class="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-1">${hit.brand}</div>
@@ -96,6 +91,7 @@ import Layout from '../layouts/Layout.astro';
     search.start();
   }
 
-  document.addEventListener('astro:page-load', init);
-  init();
+  // Start direct en luister naar Astro transities
+  startSearch();
+  document.addEventListener('astro:page-load', startSearch);
 </script>
