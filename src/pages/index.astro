@@ -54,11 +54,24 @@ import Layout from '../layouts/Layout.astro';
 
     console.log("Gevalideerde adapter:", meiliAdapter);
 
-    // De wrapper die de search methode expliciet aanroept
+        // De kogelvrije wrapper die de search methode ALTIJD vindt
     const searchClient = {
-      search: (requests) => meiliAdapter.search(requests),
-      searchForFacetValues: (requests) => {
-        return meiliAdapter.searchForFacetValues ? meiliAdapter.searchForFacetValues(requests) : undefined;
+      search(requests) {
+        // Check alle mogelijke plekken waar de search functie kan zitten
+        const searchFn = meiliAdapter.search || 
+                         (meiliAdapter.instantMeiliSearch && meiliAdapter.instantMeiliSearch.search) ||
+                         (typeof meiliAdapter === 'function' ? meiliAdapter : null);
+        
+        if (typeof searchFn !== 'function') {
+          console.error("KRITIEKE FOUT: Geen search functie gevonden in de adapter!", meiliAdapter);
+          return;
+        }
+        return searchFn(requests);
+      },
+      searchForFacetValues(requests) {
+        const facetFn = meiliAdapter.searchForFacetValues || 
+                        (meiliAdapter.instantMeiliSearch && meiliAdapter.instantMeiliSearch.searchForFacetValues);
+        return typeof facetFn === 'function' ? facetFn(requests) : undefined;
       }
     };
 
