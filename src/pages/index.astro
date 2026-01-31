@@ -18,7 +18,7 @@ import Layout from '../layouts/Layout.astro';
 <script>
   import { instantMeiliSearch } from '@meilisearch/instant-meilisearch';
   import instantsearch from 'instantsearch.js';
-  import { searchBox, hits } from 'instantsearch.js/es/widgets';
+  import { searchBox, hits, refinementList } from 'instantsearch.js/es/widgets';
 
   function init() {
     const dataEl = document.getElementById('meili-data');
@@ -28,59 +28,64 @@ import Layout from '../layouts/Layout.astro';
     const key = dataEl.dataset.key;
     if (!host || !key) return;
 
-    // 1. Maak de client aan
+    // We initialiseren de client
     const client = instantMeiliSearch(host, key);
 
-    // 2. DE KOGELVRIJE WRAPPER (Dit lost de n.search error op)
+    // DIT IS DE OPLOSSING: We bouwen een proxy-client die ALTIJD werkt
     const searchClient = {
+      ...client,
       search(requests) {
-        // We roepen de search methode direct aan op de client
-        // Dit voorkomt dat InstantSearch de verbinding verliest
+        if (requests.every(({ params }) => !params.query)) {
+          return Promise.resolve({
+            results: requests.map(() => ({
+              hits: [],
+              nbHits: 0,
+              nbPages: 0,
+              page: 0,
+              processingTimeMS: 0,
+              hitsPerPage: 0,
+              exhaustiveNbHits: true,
+              query: '',
+              params: '',
+              index: '',
+            })),
+          });
+        }
         return client.search(requests);
       },
-      searchForFacetValues(requests) {
-        return client.searchForFacetValues ? client.searchForFacetValues(requests) : undefined;
-      }
     };
 
-    // 3. Initialiseer InstantSearch met de handmatige wrapper
     const search = instantsearch({
       indexName: 'products',
-      searchClient: searchClient,
+      searchClient, // Gebruik onze proxy-client
       future: { preserveSharedStateOnUnmount: true }
     });
 
     search.addWidgets([
       searchBox({ container: '#searchbox', placeholder: 'Zoek op model...' }),
+      refinementList({ container: '#brand-filter', attribute: 'brand' }),
       hits({
         container: '#hits',
         templates: {
           item: (hit) => `
-            <div class="p-4 border mb-2 bg-white rounded-xl shadow-sm flex justify-between items-center">
-              <div><span class="text-green-600">✅</span> <strong>${hit.title_h1 || 'Product'}</strong></div>
-              <div class="font-bold text-blue-600">€${hit.min_price}</div>
+            <div class="p-4 border mb-2 bg-white rounded-xl shadow-sm flex items-center gap-4">
+              <img src="https://img.findrefurbished.com{hit.master_id}.png" class="w-12 h-12 object-contain" />
+              <div class="flex-grow">
+                <div class="font-bold text-gray-900">${hit.title_h1}</div>
+                <div class="text-sm text-gray-500">${hit.brand}</div>
+              </div>
+              <div class="font-black text-blue-600">€${hit.min_price}</div>
             </div>
           `,
-          empty: '<div class="p-10 text-center text-gray-500">❌ Geen producten gevonden.</div>'
+          empty: '<div class="p-10 text-center">❌ Geen producten gevonden.</div>'
         }
       })
     ]);
 
-    try {
-      search.start();
-      console.log("Zoekmachine draait stabiel!");
-    } catch (err) {
-      console.error("Fout bij starten:", err);
-    }
+    search.start();
   }
 
-  // Wacht tot alles geladen is en gebruik een kleine vertraging
-  window.addEventListener('load', () => {
-    setTimeout(init, 300);
-  });
-  
-  // Ook voor Astro transities
-  document.addEventListener('astro:page-load', () => {
-    setTimeout(init, 300);
-  });
+  // Luister naar zowel de eerste load als de transities van Astro
+  document.addEventListener('astro:page-load', init);
+  init();
 </script>
