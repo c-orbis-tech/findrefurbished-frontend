@@ -6,11 +6,9 @@ import Layout from '../layouts/Layout.astro';
   <main class="max-w-7xl mx-auto px-4 py-8">
     <h1 class="text-4xl font-black mb-8 text-gray-900 leading-tight tracking-tight">Vind Refurbished</h1>
     
-    <!-- Zoekbalk bovenaan -->
     <div id="searchbox" class="mb-8"></div>
 
     <div class="flex flex-col md:flex-row gap-10">
-      <!-- Sidebar Filters (Links) -->
       <aside class="w-full md:w-72 space-y-8">
         <div class="filter-section border-b pb-6 border-gray-100">
           <h3 class="font-bold text-gray-400 uppercase text-[10px] tracking-widest mb-4 italic text-right">Categorie</h3>
@@ -26,14 +24,12 @@ import Layout from '../layouts/Layout.astro';
         </div>
       </aside>
 
-      <!-- Resultaten Lijst (Rechts) -->
       <div class="flex-grow">
         <div id="hits"></div>
       </div>
     </div>
   </main>
 
-  <!-- Data element voor de keys vanuit Vercel naar JS -->
   <div id="meili-data" 
        data-host={import.meta.env.PUBLIC_MEILI_HOST} 
        data-key={import.meta.env.PUBLIC_MEILI_SEARCH_KEY}>
@@ -47,24 +43,20 @@ import Layout from '../layouts/Layout.astro';
 
   function init() {
     const dataEl = document.getElementById('meili-data');
-    if (!dataEl) return;
+    if (!dataEl || !dataEl.dataset.host) return;
 
     const { host, key } = dataEl.dataset;
-
-    // We maken de client aan
     const meiliSearchClient = instantMeiliSearch(host, key);
 
-    // DIT IS DE FIX: we maken een wrapper zodat de 'search' methode altijd gevonden wordt
+    // De wrapper fix om de "search is not a function" error te voorkomen
     const searchClient = {
-      ...meiliSearchClient,
-      search(requests) {
-        return meiliSearchClient.search(requests);
-      },
+      search: (requests) => meiliSearchClient.search(requests),
+      searchForFacetValues: (requests) => meiliSearchClient.searchForFacetValues ? meiliSearchClient.searchForFacetValues(requests) : undefined
     };
 
     const search = instantsearch({
       indexName: 'products',
-      searchClient: searchClient, // Gebruik de wrapper
+      searchClient: searchClient,
       future: { preserveSharedStateOnUnmount: true }
     });
 
@@ -87,7 +79,7 @@ import Layout from '../layouts/Layout.astro';
                 <p class="text-gray-400 text-[11px] uppercase font-bold tracking-widest mt-1">${hit.brand} • ${hit.category_primary}</p>
               </div>
               <div class="text-right flex flex-col justify-center min-w-[130px]">
-                <div class="text-3xl font-black text-blue-600">€${hit.min_price.toFixed(2)}</div>
+                <div class="text-3xl font-black text-blue-600">€${Number(hit.min_price).toFixed(2)}</div>
                 <a href="/product/${hit.variant_slug}" class="inline-block mt-3 bg-blue-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-800 transition-colors text-center text-sm">Bekijk Deals</a>
               </div>
             </div>
@@ -99,7 +91,6 @@ import Layout from '../layouts/Layout.astro';
     search.start();
   }
 
-  // Zorg dat het script altijd draait, ook na navigatie
   document.addEventListener('astro:page-load', init);
   init();
 </script>
