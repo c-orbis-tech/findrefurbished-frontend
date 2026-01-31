@@ -16,64 +16,71 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <script>
-  // We importeren de functies direct uit de geïnstalleerde pakketten
   import { instantMeiliSearch } from '@meilisearch/instant-meilisearch';
   import instantsearch from 'instantsearch.js';
   import { searchBox, hits } from 'instantsearch.js/es/widgets';
 
   function init() {
+    console.log("Poging tot initialisatie...");
+    
     const dataEl = document.getElementById('meili-data');
     if (!dataEl) return;
 
-    // Haal de host en key op, forceer HTTPS voor veiligheid
     const host = dataEl.dataset.host?.replace('http://', 'https://');
     const key = dataEl.dataset.key;
 
-    if (!host || !key) {
-      console.error("Meilisearch configuratie ontbreekt in Vercel!");
-      return;
-    }
+    if (!host || !key) return;
 
-    // We maken de client aan via de officiële SDK
-    const searchClient = instantMeiliSearch(host, key);
+    // DE FIX: We maken de client aan
+    const meiliClient = instantMeiliSearch(host, key);
+
+    // DE WRAPPER: We forceren de search-methode zodat InstantSearch niet kan klagen
+    const searchClient = {
+      ...meiliClient,
+      search(requests) {
+        return meiliClient.search(requests);
+      }
+    };
 
     const search = instantsearch({
       indexName: 'products',
-      searchClient: searchClient,
+      searchClient: searchClient, // Gebruik de wrapper
       future: { preserveSharedStateOnUnmount: true }
     });
 
     search.addWidgets([
-      searchBox({ 
-        container: '#searchbox',
-        placeholder: 'Zoek op model...' 
-      }),
+      searchBox({ container: '#searchbox', placeholder: 'Zoek op model...' }),
       hits({
         container: '#hits',
         templates: {
           item: (hit) => `
             <div class="p-4 border mb-2 bg-white rounded-xl shadow-sm flex justify-between items-center">
-              <div>
-                <span class="text-green-600">✅</span> 
-                <strong class="text-gray-900">${hit.title_h1 || 'Product'}</strong>
-              </div>
+              <div><span class="text-green-600">✅</span> <strong>${hit.title_h1 || 'Product'}</strong></div>
               <div class="font-bold text-blue-600">€${hit.min_price}</div>
             </div>
           `,
-          empty: '<div class="p-10 text-center text-gray-500">❌ Geen producten gevonden in index "products".</div>'
+          empty: '<div class="p-10 text-center">❌ Geen producten gevonden.</div>'
         }
       })
     ]);
 
-    search.on('render', () => {
-      console.log("Hits gevonden:", search.helper?.lastResults?.nbHits);
-    });
-
-    search.start();
-    console.log("Zoekmachine succesvol gestart via Astro Bundler.");
+    try {
+      search.start();
+      console.log("Zoekmachine succesvol gestart!");
+    } catch (err) {
+      console.error("Startfout:", err);
+    }
   }
 
-  // Voer uit bij laden en bij Astro pagina-wisselingen
-  document.addEventListener('astro:page-load', init);
-  init();
+  // Wacht 200ms zodat de browser de bundel rustig kan inladen
+  document.addEventListener('astro:page-load', () => {
+    setTimeout(init, 200);
+  });
+  
+  // Fallback voor eerste keer laden
+  if (document.readyState === 'complete') {
+    setTimeout(init, 200);
+  } else {
+    window.addEventListener('load', () => setTimeout(init, 200));
+  }
 </script>
