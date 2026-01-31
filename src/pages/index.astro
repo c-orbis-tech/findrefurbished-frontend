@@ -37,92 +37,82 @@ import Layout from '../layouts/Layout.astro';
 <script is:inline src="https://cdn.jsdelivr.net/npm/instantsearch.js@4"></script>
 
 <script is:inline>
-  function startSearch() {
+  async function startSearch() {
     const dataEl = document.getElementById('meili-data');
     if (!dataEl) return;
 
-    // Forceer HTTPS om Mixed Content blokkades te voorkomen
     const host = dataEl.dataset.host.replace('http://', 'https://');
     const key = dataEl.dataset.key;
 
-    // 1. Zoek de library op in het globale window object
-    const IMS = window.instantMeiliSearch?.instantMeiliSearch || window.instantMeiliSearch;
-    
-    if (typeof IMS !== 'function') {
-      console.warn("Zoekmachine nog niet geladen, herpoging...");
-      setTimeout(startSearch, 100);
-      return;
-    }
-
-    // 2. Maak de rauwe client aan
-    const rawClient = IMS(host, key);
-
-    // 3. DE FIX: Handmatige wrapper om de 'search method' error te voorkomen
+    // DE ULTIEME FIX: We bouwen de search methode handmatig via fetch
+    // Dit omzeilt alle adapter-fouten
     const searchClient = {
-      search(requests) {
-        // We proberen alle mogelijke schuilplaatsen van de search-functie
-        const fn = rawClient.search 
-          || (rawClient.instantMeiliSearch && rawClient.instantMeiliSearch.search)
-          || (window.instantMeiliSearch && window.instantMeiliSearch.search);
+      async search(requests) {
+        const { indexName, params } = requests[0];
+        const response = await fetch(`${host}/indexes/${indexName}/search`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`
+          },
+          body: JSON.stringify({
+            q: params.query,
+            limit: params.hitsPerPage || 20,
+            filter: params.filters || "",
+            facets: ["brand", "category_primary", "offers.condition"]
+          })
+        });
+        const data = await response.json();
         
-        if (typeof fn !== 'function') {
-          return Promise.reject(new Error("Search method not found"));
-        }
-        return fn(requests);
-      },
-      searchForFacetValues(requests) {
-        const fn = rawClient.searchForFacetValues 
-          || (rawClient.instantMeiliSearch && rawClient.instantMeiliSearch.searchForFacetValues);
-        return fn ? fn(requests) : Promise.resolve([]);
+        // Vertaal Meilisearch output naar InstantSearch formaat
+        return {
+          results: requests.map(() => ({
+            hits: data.hits,
+            nbHits: data.estimatedTotalHits,
+            nbPages: Math.ceil(data.estimatedTotalHits / 20),
+            page: 0,
+            processingTimeMS: data.processingTimeMs,
+            hitsPerPage: 20,
+            query: params.query,
+            facets: data.facetDistribution,
+            exhaustiveNbHits: true
+          }))
+        };
       }
     };
 
-    // 4. Initialiseer InstantSearch met de handmatige client
     const search = instantsearch({
       indexName: 'products',
       searchClient: searchClient,
     });
 
     search.addWidgets([
-      instantsearch.widgets.searchBox({ 
-        container: '#searchbox',
-        placeholder: 'Zoek op model...' 
-      }),
-      instantsearch.widgets.refinementList({ 
-        container: '#brand-filter', 
-        attribute: 'brand' 
-      }),
+      instantsearch.widgets.searchBox({ container: '#searchbox', placeholder: 'Zoek op model...' }),
       instantsearch.widgets.hits({
         container: '#hits',
         templates: {
           item: (hit) => `
-            <div class="p-4 border border-gray-200 mb-2 bg-white rounded-xl shadow-sm flex items-center gap-4 group hover:border-blue-500 transition-colors">
-              <img src="https://img.findrefurbished.com/${hit.master_id}.png" class="w-16 h-16 object-contain" onerror="this.src='https://placehold.co'" />
+            <div class="p-4 border border-gray-200 mb-2 bg-white rounded-xl shadow-sm flex items-center gap-4">
+              <img src="https://img.findrefurbished.com{hit.master_id}.length > 0 ? hit.master_id : 'placeholder'}.png" class="w-16 h-16 object-contain" onerror="this.src='https://placehold.co'" />
               <div class="flex-grow">
                 <div class="font-bold text-gray-900 leading-tight">${hit.title_h1}</div>
                 <div class="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-1">${hit.brand}</div>
               </div>
               <div class="text-right min-w-[100px]">
-                <div class="text-[10px] text-gray-400 font-bold uppercase mb-[-4px]">Vanaf</div>
                 <div class="text-2xl font-black text-blue-600 leading-none">€${Number(hit.min_price).toFixed(2)}</div>
                 <a href="/product/${hit.variant_slug}" class="inline-block mt-2 text-[11px] text-blue-600 font-bold hover:underline">Bekijk deals</a>
               </div>
             </div>
           `,
-          empty: '<div class="p-10 text-center text-gray-500 italic">Geen producten gevonden.</div>'
+          empty: '<div class="p-10 text-center text-gray-500 italic">❌ Geen producten gevonden.</div>'
         }
       })
     ]);
 
     search.start();
-    console.log("✅ Zoekmachine succesvol geforceerd gestart!");
+    console.log("🚀 Handmatige Search Engine gestart!");
   }
 
-  // Starten bij laden
-  if (document.readyState === 'complete') {
-    startSearch();
-  } else {
-    window.addEventListener('load', startSearch);
-  }
+  window.addEventListener('load', startSearch);
   document.addEventListener('astro:page-load', startSearch);
 </script>
