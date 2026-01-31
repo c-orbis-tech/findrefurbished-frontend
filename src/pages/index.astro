@@ -47,53 +47,48 @@ import Layout from '../layouts/Layout.astro';
 
   function init() {
     const dataEl = document.getElementById('meili-data');
-    if (!dataEl || !dataEl.dataset.host) return;
+    if (!dataEl) return;
 
     const { host, key } = dataEl.dataset;
 
-    // FIX: Expliciete initialisatie van de client om de "search method" error te voorkomen
+    // We maken de client aan
     const meiliSearchClient = instantMeiliSearch(host, key);
+
+    // DIT IS DE FIX: we maken een wrapper zodat de 'search' methode altijd gevonden wordt
+    const searchClient = {
+      ...meiliSearchClient,
+      search(requests) {
+        return meiliSearchClient.search(requests);
+      },
+    };
 
     const search = instantsearch({
       indexName: 'products',
-      searchClient: meiliSearchClient,
-      future: {
-        preserveSharedStateOnUnmount: true,
-      },
+      searchClient: searchClient, // Gebruik de wrapper
+      future: { preserveSharedStateOnUnmount: true }
     });
 
     search.addWidgets([
-      searchBox({ 
-        container: '#searchbox', 
-        placeholder: 'Zoek op model (bijv. iPhone 15 Pro)...',
-        cssClasses: {
-          input: 'w-full p-4 rounded-2xl border-2 border-gray-100 focus:border-blue-500 outline-none transition-all shadow-sm text-lg'
-        }
-      }),
-      
+      searchBox({ container: '#searchbox', placeholder: 'Zoek op model...' }),
       refinementList({ container: '#category-filter', attribute: 'category_primary' }),
       refinementList({ container: '#brand-filter', attribute: 'brand' }),
       refinementList({ container: '#condition-filter', attribute: 'offers.condition' }),
-
       hits({
         container: '#hits',
         templates: {
-          empty: (results) => `<div class="p-10 text-center bg-white rounded-3xl border border-dashed border-gray-200">
-            <p class="text-gray-400 italic">Geen producten gevonden voor "${results.query}".</p>
-          </div>`,
+          empty: (results) => `<p class="p-10 text-center">Geen producten gevonden voor "${results.query}".</p>`,
           item: (hit) => `
-            <div class="flex items-center gap-6 bg-white border border-gray-200 p-5 rounded-3xl mb-4 shadow-sm hover:border-blue-500 transition-all hover:shadow-xl group cursor-pointer">
-              <div class="w-28 h-28 flex-shrink-0 flex items-center justify-center p-3 bg-gray-50 rounded-2xl group-hover:bg-white transition-colors">
-                <img src="https://img.findrefurbished.com{hit.master_id}.png" class="max-h-full transition-transform group-hover:scale-110" alt="${hit.title_h1}" onerror="this.src='https://placehold.co'" />
+            <div class="flex items-center gap-6 bg-white border border-gray-200 p-5 rounded-2xl mb-4 shadow-sm hover:border-blue-500 transition-all group">
+              <div class="w-24 h-24 flex-shrink-0 flex items-center justify-center p-2 bg-gray-50 rounded-xl">
+                <img src="https://img.findrefurbished.com/${hit.master_id}.png" class="max-h-full" alt="${hit.title_h1}" onerror="this.src='https://placehold.co/200x200?text=Geen+Foto'" />
               </div>
               <div class="flex-grow">
-                <h2 class="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors leading-tight">${hit.title_h1}</h2>
-                <p class="text-gray-400 text-[11px] uppercase font-black tracking-widest mt-2">${hit.brand} • ${hit.category_primary}</p>
+                <h2 class="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">${hit.title_h1}</h2>
+                <p class="text-gray-400 text-[11px] uppercase font-bold tracking-widest mt-1">${hit.brand} • ${hit.category_primary}</p>
               </div>
-              <div class="text-right flex flex-col justify-center min-w-[140px] border-l border-gray-50 pl-6">
-                <div class="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mb-[-2px]">Vanaf</div>
-                <div class="text-3xl font-black text-blue-600 leading-none">€${hit.min_price.toFixed(2)}</div>
-                <a href="/product/${hit.variant_slug}" class="inline-block mt-4 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-blue-800 transition-all text-center text-sm shadow-sm active:scale-95">Bekijk Deals</a>
+              <div class="text-right flex flex-col justify-center min-w-[130px]">
+                <div class="text-3xl font-black text-blue-600">€${hit.min_price.toFixed(2)}</div>
+                <a href="/product/${hit.variant_slug}" class="inline-block mt-3 bg-blue-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-800 transition-colors text-center text-sm">Bekijk Deals</a>
               </div>
             </div>
           `,
@@ -102,10 +97,9 @@ import Layout from '../layouts/Layout.astro';
     ]);
 
     search.start();
-    console.log("Zoekmachine succesvol gestart.");
   }
 
-  // Werkt voor zowel de eerste load als Astro-navigatie
+  // Zorg dat het script altijd draait, ook na navigatie
   document.addEventListener('astro:page-load', init);
   init();
 </script>
