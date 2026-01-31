@@ -43,15 +43,29 @@ import Layout from '../layouts/Layout.astro';
     const host = dataEl.dataset.host.replace('http://', 'https://');
     const key = dataEl.dataset.key;
 
-    // Check of de libraries geladen zijn in het window object
+    // 1. Zoek de library op alle mogelijke plekken in het geheugen
     const IMS = window.instantMeiliSearch?.instantMeiliSearch || window.instantMeiliSearch;
+    
     if (typeof IMS !== 'function') {
+      console.warn("Zoekmachine library nog niet klaar, herpoging...");
       setTimeout(startSearch, 100);
       return;
     }
 
-    const searchClient = IMS(host, key);
+    // 2. Maak de rauwe client aan
+    const rawClient = IMS(host, key);
 
+    // 3. DE FIX: Bouw handmatig de searchClient met de verplichte search-methode
+    const searchClient = {
+      search(requests) {
+        return rawClient.search(requests);
+      },
+      searchForFacetValues(requests) {
+        return rawClient.searchForFacetValues ? rawClient.searchForFacetValues(requests) : undefined;
+      }
+    };
+
+    // 4. Start InstantSearch met onze handmatige client
     const search = instantsearch({
       indexName: 'products',
       searchClient: searchClient,
@@ -89,9 +103,14 @@ import Layout from '../layouts/Layout.astro';
     ]);
 
     search.start();
+    console.log("Zoekmachine succesvol geforceerd gestart!");
   }
 
   // Start direct en luister naar Astro transities
-  startSearch();
+  if (document.readyState === 'complete') {
+    startSearch();
+  } else {
+    window.addEventListener('load', startSearch);
+  }
   document.addEventListener('astro:page-load', startSearch);
 </script>
