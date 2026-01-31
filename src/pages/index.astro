@@ -21,30 +21,32 @@ import Layout from '../layouts/Layout.astro';
   import { searchBox, hits } from 'instantsearch.js/es/widgets';
 
   function init() {
-    console.log("Poging tot initialisatie...");
-    
     const dataEl = document.getElementById('meili-data');
     if (!dataEl) return;
 
     const host = dataEl.dataset.host?.replace('http://', 'https://');
     const key = dataEl.dataset.key;
-
     if (!host || !key) return;
 
-    // DE FIX: We maken de client aan
-    const meiliClient = instantMeiliSearch(host, key);
+    // 1. Maak de client aan
+    const client = instantMeiliSearch(host, key);
 
-    // DE WRAPPER: We forceren de search-methode zodat InstantSearch niet kan klagen
+    // 2. DE KOGELVRIJE WRAPPER (Dit lost de n.search error op)
     const searchClient = {
-      ...meiliClient,
       search(requests) {
-        return meiliClient.search(requests);
+        // We roepen de search methode direct aan op de client
+        // Dit voorkomt dat InstantSearch de verbinding verliest
+        return client.search(requests);
+      },
+      searchForFacetValues(requests) {
+        return client.searchForFacetValues ? client.searchForFacetValues(requests) : undefined;
       }
     };
 
+    // 3. Initialiseer InstantSearch met de handmatige wrapper
     const search = instantsearch({
       indexName: 'products',
-      searchClient: searchClient, // Gebruik de wrapper
+      searchClient: searchClient,
       future: { preserveSharedStateOnUnmount: true }
     });
 
@@ -59,28 +61,26 @@ import Layout from '../layouts/Layout.astro';
               <div class="font-bold text-blue-600">€${hit.min_price}</div>
             </div>
           `,
-          empty: '<div class="p-10 text-center">❌ Geen producten gevonden.</div>'
+          empty: '<div class="p-10 text-center text-gray-500">❌ Geen producten gevonden.</div>'
         }
       })
     ]);
 
     try {
       search.start();
-      console.log("Zoekmachine succesvol gestart!");
+      console.log("Zoekmachine draait stabiel!");
     } catch (err) {
-      console.error("Startfout:", err);
+      console.error("Fout bij starten:", err);
     }
   }
 
-  // Wacht 200ms zodat de browser de bundel rustig kan inladen
-  document.addEventListener('astro:page-load', () => {
-    setTimeout(init, 200);
+  // Wacht tot alles geladen is en gebruik een kleine vertraging
+  window.addEventListener('load', () => {
+    setTimeout(init, 300);
   });
   
-  // Fallback voor eerste keer laden
-  if (document.readyState === 'complete') {
-    setTimeout(init, 200);
-  } else {
-    window.addEventListener('load', () => setTimeout(init, 200));
-  }
+  // Ook voor Astro transities
+  document.addEventListener('astro:page-load', () => {
+    setTimeout(init, 300);
+  });
 </script>
