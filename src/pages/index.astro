@@ -41,20 +41,33 @@ import Layout from '../layouts/Layout.astro';
     const dataEl = document.getElementById('meili-data');
     if (!dataEl) return;
 
+    // Forceer HTTPS om Mixed Content blokkades te voorkomen
     const host = dataEl.dataset.host.replace('http://', 'https://');
     const key = dataEl.dataset.key;
 
-    // 2. Zoek de library op in het globale window-object (geen Astro-bundler!)
+    // 1. Zoek de library op in het globale window object
     const IMS = window.instantMeiliSearch?.instantMeiliSearch || window.instantMeiliSearch;
     
     if (typeof IMS !== 'function') {
-      console.log("Wachten op scripts...");
+      console.warn("Zoekmachine nog niet geladen, herpoging...");
       setTimeout(startSearch, 100);
       return;
     }
 
-    const searchClient = IMS(host, key);
+    // 2. Maak de rauwe client aan
+    const rawClient = IMS(host, key);
 
+    // 3. DE FIX: Handmatige wrapper om de 'search method' error te voorkomen
+    const searchClient = {
+      search(requests) {
+        return rawClient.search(requests);
+      },
+      searchForFacetValues(requests) {
+        return rawClient.searchForFacetValues ? rawClient.searchForFacetValues(requests) : undefined;
+      }
+    };
+
+    // 4. Initialiseer InstantSearch met de handmatige client
     const search = instantsearch({
       indexName: 'products',
       searchClient: searchClient,
@@ -73,28 +86,33 @@ import Layout from '../layouts/Layout.astro';
         container: '#hits',
         templates: {
           item: (hit) => `
-            <div class="p-4 border mb-2 bg-white rounded-xl shadow-sm flex items-center gap-4">
+            <div class="p-4 border border-gray-200 mb-2 bg-white rounded-xl shadow-sm flex items-center gap-4 group hover:border-blue-500 transition-colors">
               <img src="https://img.findrefurbished.com/${hit.master_id}.png" class="w-16 h-16 object-contain" onerror="this.src='https://placehold.co'" />
               <div class="flex-grow">
                 <div class="font-bold text-gray-900 leading-tight">${hit.title_h1}</div>
                 <div class="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-1">${hit.brand}</div>
               </div>
               <div class="text-right min-w-[100px]">
-                <div class="text-3xl font-black text-blue-600 leading-none">€${Number(hit.min_price).toFixed(2)}</div>
-                <a href="/product/${hit.variant_slug}" class="inline-block mt-2 text-xs font-bold text-blue-500 hover:underline">Bekijk deals</a>
+                <div class="text-[10px] text-gray-400 font-bold uppercase mb-[-4px]">Vanaf</div>
+                <div class="text-2xl font-black text-blue-600 leading-none">€${Number(hit.min_price).toFixed(2)}</div>
+                <a href="/product/${hit.variant_slug}" class="inline-block mt-2 text-[11px] text-blue-600 font-bold hover:underline">Bekijk deals</a>
               </div>
             </div>
           `,
-          empty: '<div class="p-10 text-center text-gray-500 italic">❌ Geen producten gevonden.</div>'
+          empty: '<div class="p-10 text-center text-gray-500 italic">Geen producten gevonden.</div>'
         }
       })
     ]);
 
     search.start();
-    console.log("✅ Zoekmachine live op findrefurbished.com");
+    console.log("✅ Zoekmachine succesvol geforceerd gestart!");
   }
 
-  // Start zodra de browser de scripts geladen heeft
-  window.addEventListener('load', startSearch);
+  // Starten bij laden
+  if (document.readyState === 'complete') {
+    startSearch();
+  } else {
+    window.addEventListener('load', startSearch);
+  }
   document.addEventListener('astro:page-load', startSearch);
 </script>
