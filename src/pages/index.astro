@@ -34,32 +34,35 @@ import Layout from '../layouts/Layout.astro';
       return;
     }
 
-        // Kogelvrije manier om de client te starten vanuit de UMD bundel
-    let meiliClient;
-    if (typeof window.instantMeiliSearch === 'function') {
-      meiliClient = window.instantMeiliSearch(host, key);
-    } else if (window.instantMeiliSearch && typeof window.instantMeiliSearch.instantMeiliSearch === 'function') {
-      meiliClient = window.instantMeiliSearch.instantMeiliSearch(host, key);
-    } else {
-      console.error("ERROR: De Meilisearch functies zijn niet vindbaar in het geladen script.");
+            // De juiste manier om de adapter te initialiseren vanuit de UMD-bundel
+    let meiliAdapter;
+    try {
+      if (typeof instantMeiliSearch.instantMeiliSearch === 'function') {
+        meiliAdapter = instantMeiliSearch.instantMeiliSearch(host, key);
+      } else {
+        meiliAdapter = instantMeiliSearch(host, key);
+      }
+    } catch (e) {
+      console.error("Adapter crash:", e);
       return;
     }
 
-    console.log("Client object gecreëerd:", meiliClient);
+    console.log("Adapter gecreëerd:", meiliAdapter);
 
-    // FIX 2: De kogelvrije wrapper voor de searchClient
+    // ÉÉN searchClient wrapper die de adapter gebruikt
     const searchClient = {
       search(requests) {
-        return meiliClient.search(requests);
+        return meiliAdapter.search(requests);
       },
       searchForFacetValues(requests) {
-        return meiliClient.searchForFacetValues(requests);
+        return meiliAdapter.searchForFacetValues ? meiliAdapter.searchForFacetValues(requests) : undefined;
       }
     };
 
     const search = instantsearch({
       indexName: 'products',
-      searchClient: searchClient, // Gebruik de wrapper
+      searchClient: searchClient,
+      future: { preserveSharedStateOnUnmount: true }
     });
 
     search.addWidgets([
