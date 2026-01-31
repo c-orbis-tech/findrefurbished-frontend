@@ -23,14 +23,7 @@ try {
   })
 });
 
-
-    body: JSON.stringify({
-      filter: `variant_slug = "${slug}"`,
-      limit: 1
-    })
-  });
-
-  debugInfo = await response.json();
+debugInfo = await response.json();
   
   if (debugInfo.hits && debugInfo.hits.length > 0) {
     product = debugInfo.hits[0]; // Pak het eerste product
