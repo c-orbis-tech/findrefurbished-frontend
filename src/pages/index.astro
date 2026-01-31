@@ -19,77 +19,53 @@ import Layout from '../layouts/Layout.astro';
 <script is:inline src="https://cdn.jsdelivr.net/npm/instantsearch.js@4"></script>
 
 <script is:inline>
-    function testMeili() {
+  function startEngine() {
     const dataEl = document.getElementById('meili-data');
-    
-    // FIX 1: We forceren HTTPS
+    if (!dataEl) return;
+
     const host = dataEl.dataset.host.replace('http://', 'https://');
     const key = dataEl.dataset.key;
 
-    console.log("--- DEBUG START ---");
-    console.log("Verbinden met:", host);
+    console.log("--- ENGINE START ---");
 
-    if (typeof instantMeiliSearch === 'undefined') {
-      console.error("ERROR: MeiliSearch bibliotheek niet geladen!");
+    // We zoeken handmatig naar de juiste functie in de browser-window
+    const IMS = window.instantMeiliSearch?.instantMeiliSearch || window.instantMeiliSearch;
+    
+    if (typeof IMS !== 'function') {
+      console.error("Kritieke fout: Meilisearch functies niet gevonden in browser geheugen.");
       return;
     }
 
-    // DIRECTE INITIALISATIE (UMD-Proof)
-    let searchClient;
-    try {
-      // We maken gebruik van de globale instantMeiliSearch functie
-      const client = (typeof instantMeiliSearch === 'function') 
-        ? instantMeiliSearch(host, key) 
-        : instantMeiliSearch.instantMeiliSearch(host, key);
+    const meiliClient = IMS(host, key);
 
-      // We bouwen de wrapper direct op het resultaat
-      searchClient = {
-        search: (requests) => client.search(requests),
-        searchForFacetValues: (requests) => client.searchForFacetValues ? client.searchForFacetValues(requests) : undefined
-      };
-      
-      console.log("SearchClient succesvol geconfigureerd.");
-    } catch (e) {
-      console.error("Kritieke fout bij aanmaken client:", e);
-      return;
-    }
-
-    // Maak de search instance aan
     const search = instantsearch({
       indexName: 'products',
-      searchClient: searchClient,
+      searchClient: meiliClient,
       future: { preserveSharedStateOnUnmount: true }
     });
-
-    console.log("InstantSearch instance aangemaakt.");
 
     search.addWidgets([
       instantsearch.widgets.searchBox({ container: '#searchbox' }),
       instantsearch.widgets.hits({
         container: '#hits',
         templates: {
-          item: (hit) => `<div>✅ Gevonden: ${hit.title_h1 || hit.title}</div>`,
-          empty: '❌ Geen resultaten gevonden in de index "products".'
+          item: (hit) => `<div>✅ Succes: ${hit.title_h1 || 'Product'}</div>`,
+          empty: '❌ Geen producten gevonden in index "products".'
         }
       })
     ]);
 
     search.on('render', () => {
-      const results = search.helper.lastResults;
-      if (results) {
-        console.log("Meilisearch resultaten:", results.nbHits);
-      }
+      console.log("Aantal resultaten gevonden:", search.helper.lastResults?.nbHits);
     });
 
-    try {
-      search.start();
-      console.log("Zoekmachine gestart!");
-    } catch (err) {
-      console.error("Crash tijdens starten:", err);
-    }
+    search.start();
+    console.log("Engine draait!");
   }
 
-
-  // Wacht even tot alles echt geladen is
-  setTimeout(testMeili, 1000);
+  // Wacht even tot de scripts van het internet binnen zijn
+  window.onload = () => {
+    setTimeout(startEngine, 500);
+  };
 </script>
+
