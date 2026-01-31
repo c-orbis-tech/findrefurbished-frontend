@@ -34,46 +34,25 @@ import Layout from '../layouts/Layout.astro';
       return;
     }
 
-            // De kogelvrije manier om de adapter te initialiseren
-    let meiliAdapter;
+    // DIRECTE INITIALISATIE (UMD-Proof)
+    let searchClient;
     try {
-      const factory = (typeof instantMeiliSearch.instantMeiliSearch === 'function') 
-        ? instantMeiliSearch.instantMeiliSearch 
-        : instantMeiliSearch;
+      // We maken gebruik van de globale instantMeiliSearch functie
+      const client = (typeof instantMeiliSearch === 'function') 
+        ? instantMeiliSearch(host, key) 
+        : instantMeiliSearch.instantMeiliSearch(host, key);
+
+      // We bouwen de wrapper direct op het resultaat
+      searchClient = {
+        search: (requests) => client.search(requests),
+        searchForFacetValues: (requests) => client.searchForFacetValues ? client.searchForFacetValues(requests) : undefined
+      };
       
-      meiliAdapter = factory(host, key);
-      
-      // Als de search methode nog steeds ontbreekt, proberen we hem handmatig te binden
-      if (typeof meiliAdapter.search !== 'function' && meiliAdapter.instantMeiliSearch) {
-          meiliAdapter = meiliAdapter.instantMeiliSearch;
-      }
+      console.log("SearchClient succesvol geconfigureerd.");
     } catch (e) {
-      console.error("Adapter crash:", e);
+      console.error("Kritieke fout bij aanmaken client:", e);
       return;
     }
-
-    console.log("Gevalideerde adapter:", meiliAdapter);
-
-        // De kogelvrije wrapper die de search methode ALTIJD vindt
-    const searchClient = {
-      search(requests) {
-        // Check alle mogelijke plekken waar de search functie kan zitten
-        const searchFn = meiliAdapter.search || 
-                         (meiliAdapter.instantMeiliSearch && meiliAdapter.instantMeiliSearch.search) ||
-                         (typeof meiliAdapter === 'function' ? meiliAdapter : null);
-        
-        if (typeof searchFn !== 'function') {
-          console.error("KRITIEKE FOUT: Geen search functie gevonden in de adapter!", meiliAdapter);
-          return;
-        }
-        return searchFn(requests);
-      },
-      searchForFacetValues(requests) {
-        const facetFn = meiliAdapter.searchForFacetValues || 
-                        (meiliAdapter.instantMeiliSearch && meiliAdapter.instantMeiliSearch.searchForFacetValues);
-        return typeof facetFn === 'function' ? facetFn(requests) : undefined;
-      }
-    };
 
     // Maak de search instance aan
     const search = instantsearch({
