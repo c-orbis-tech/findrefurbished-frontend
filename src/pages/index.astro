@@ -36,11 +36,21 @@ import Layout from '../layouts/Layout.astro';
       return;
     }
 
-    const meiliClient = IMS(host, key);
+    cconst client = IMS(host, key);
+
+    // DIT IS DE KEY: We bouwen de wrapper handmatig op om de error te voorkomen
+    const searchClient = {
+      search(requests) {
+        return client.search(requests);
+      },
+      searchForFacetValues(requests) {
+        return client.searchForFacetValues ? client.searchForFacetValues(requests) : undefined;
+      }
+    };
 
     const search = instantsearch({
       indexName: 'products',
-      searchClient: meiliClient,
+      searchClient: searchClient, // Gebruik de handmatige wrapper
       future: { preserveSharedStateOnUnmount: true }
     });
 
