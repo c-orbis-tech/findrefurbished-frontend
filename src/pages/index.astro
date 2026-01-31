@@ -62,6 +62,15 @@ import Layout from '../layouts/Layout.astro';
       }
     };
 
+    // Maak de search instance aan
+    const search = instantsearch({
+      indexName: 'products',
+      searchClient: searchClient,
+      future: { preserveSharedStateOnUnmount: true }
+    });
+
+    console.log("InstantSearch instance aangemaakt.");
+
     search.addWidgets([
       instantsearch.widgets.searchBox({ container: '#searchbox' }),
       instantsearch.widgets.hits({
