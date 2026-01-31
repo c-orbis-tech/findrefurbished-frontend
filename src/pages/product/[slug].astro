@@ -6,34 +6,58 @@ const { slug } = Astro.params;
 const host = import.meta.env.PUBLIC_MEILI_HOST;
 const key = import.meta.env.PUBLIC_MEILI_SEARCH_KEY;
 
-// 1. Haal de data op (we gebruiken nu een simpelere filter string)
-const response = await fetch(`${host}/indexes/products/search`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${key}`
-  },
-  body: JSON.stringify({
-    // Belangrijk: Enkelvoudige quotes rond de variabele
-    filter: `variant_slug = '${slug}'`, 
-    limit: 1
-  })
-});
+let debugInfo = null;
+let product = null;
 
-const searchData = await response.json();
+try {
+  const response = await fetch(`${host}/indexes/products/search`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key}`
+    },
+    body: JSON.stringify({
+      filter: `variant_slug = "${slug}"`,
+      limit: 1
+    })
+  });
 
-// 2. Check of we echt een hit hebben
-const product = (searchData.hits && searchData.hits.length > 0) ? searchData.hits[0] : null;
-
-// 3. Als het product niet bestaat, stuur naar 404
-if (!product) {
-  // Voor debuggen kun je deze regel tijdelijk veranderen in: 
-  // throw new Error(`Product niet gevonden voor slug: ${slug}`);
-  return Astro.redirect('/404');
+  debugInfo = await response.json();
+  
+  if (debugInfo.hits && debugInfo.hits.length > 0) {
+    product = debugInfo.hits[0];
+  }
+} catch (e) {
+  debugInfo = { error: e.message };
 }
 
-const sortedOffers = product.offers?.sort((a, b) => a.price - b.price) || [];
+// TIJDELIJK: We schakelen de 404 redirect uit om te zien wat er gebeurt
+// if (!product) { return Astro.redirect('/404'); }
+
+const sortedOffers = product?.offers?.sort((a, b) => a.price - b.price) || [];
 ---
+
+<Layout title="Debug Pagina">
+  <main class="p-10">
+    {!product ? (
+      <div class="bg-red-50 p-8 border border-red-200 rounded-xl">
+        <h1 class="text-red-600 font-bold text-2xl mb-4">Product niet gevonden!</h1>
+        <p class="mb-4 text-gray-700">Astro zocht naar slug: <strong>{slug}</strong></p>
+        
+        <h2 class="font-bold mb-2">Rauwe data van Meilisearch:</h2>
+        <pre class="bg-gray-900 text-green-400 p-4 rounded overflow-auto max-h-96 text-xs">
+          {JSON.stringify(debugInfo, null, 2)}
+        </pre>
+      </div>
+    ) : (
+      <div>
+        <h1 class="text-4xl font-black">{product.title_h1}</h1>
+        <!-- Rest van je mooie product code hier... -->
+      </div>
+    )}
+  </main>
+</Layout>
+
 
 
 <Layout title={`${product.title_h1} Vergelijken - Vind Refurbished`}>
