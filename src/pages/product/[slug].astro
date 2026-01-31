@@ -1,33 +1,44 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 
-// 1. Haal de slug uit de URL (bijv. apple-iphone-15-pro)
 const { slug } = Astro.params;
 
-// 2. Haal de data op uit Meilisearch
-const response = await fetch(`${import.meta.env.PUBLIC_MEILI_HOST}/indexes/products/search`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${import.meta.env.PUBLIC_MEILI_SEARCH_KEY}`
-  },
-  body: JSON.stringify({
-    filter: `variant_slug = "${slug}"`,
-    limit: 1
-  })
-});
+const host = import.meta.env.PUBLIC_MEILI_HOST;
+const key = import.meta.env.PUBLIC_MEILI_SEARCH_KEY;
 
-const searchData = await response.json();
-const product = searchData.hits[0];
+let product = null;
+let sortedOffers = [];
 
-// Als het product niet bestaat (404)
+try {
+  const response = await fetch(`${host}/indexes/products/search`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key}`
+    },
+    body: JSON.stringify({
+      filter: `variant_slug = "${slug}"`,
+      limit: 1
+    })
+  });
+
+  const searchData = await response.json();
+  
+  // Veilig checken of er data is voordat we hits[0] aanroepen
+  if (searchData.hits && searchData.hits.length > 0) {
+    product = searchData.hits[0];
+    sortedOffers = product.offers?.sort((a, b) => a.price - b.price) || [];
+  }
+} catch (error) {
+  console.error("Fetch error:", error);
+}
+
+// Als er geen product is gevonden, stuur naar de 404 pagina
 if (!product) {
   return Astro.redirect('/404');
 }
-
-// Sorteer de deals op prijs (laagste eerst)
-const sortedOffers = product.offers?.sort((a, b) => a.price - b.price) || [];
 ---
+
 
 <Layout title={`${product.title_h1} Vergelijken - Vind Refurbished`}>
   <main class="max-w-5xl mx-auto px-4 py-12">
