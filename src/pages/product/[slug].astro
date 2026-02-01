@@ -8,6 +8,8 @@ const host = import.meta.env.PUBLIC_MEILI_HOST || "https://api.findrefurbished.c
 const key = import.meta.env.MEILI_SERVER_KEY || import.meta.env.PUBLIC_MEILI_SEARCH_KEY || "Test543";
 
 let product = null;
+// TIJDELIJK VERVANGEN OM TE TESTEN:
+const key = "Test543"; 
 
 try {
   const response = await fetch(host + '/indexes/products/search', {
