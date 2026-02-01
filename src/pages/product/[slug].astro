@@ -3,89 +3,80 @@ import Layout from '../../layouts/Layout.astro';
 
 const { slug } = Astro.params;
 
-// HYBRIDE METHODE: Gebruik Vercel-variabelen OF de hardcoded fallback
-const host = import.meta.env.PUBLIC_MEILI_HOST || "https://api.findrefurbished.com";
-const key = import.meta.env.MEILI_SERVER_KEY || import.meta.env.PUBLIC_MEILI_SEARCH_KEY || "Test543";
+// Forceer de juiste waarden
+const host = "https://api.findrefurbished.com";
+const key = "Test543"; 
 
 let product = null;
 
 try {
-  // We gebruiken de 'oude' vertrouwde optel-methode voor de URL
-  const response = await fetch(host + '/indexes/products/search', {
+  // We plakken de sleutel DIRECT in de URL (noodgreep die altijd werkt)
+  const apiUrl = `${host}/indexes/products/search?apiKey=${key}`;
+  
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + key
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      filter: "variant_slug = '" + slug + "'",
+      filter: `variant_slug = '${slug}'`,
       limit: 1
     })
   });
 
   const data = await response.json();
-  if (data && data.hits && data.hits.length > 0) {
+  
+  if (data.hits && data.hits.length > 0) {
     product = data.hits[0];
   }
 } catch (e) {
-  console.error("Fetch fout:", e.message);
+  console.error("Fetch error:", e.message);
 }
 
-// Als hij na de fetch nog steeds leeg is, redirect naar 404
-if (!product) {
-  return Astro.redirect('/404');
-}
-
-const sortedOffers = product.offers?.sort((a, b) => Number(a.price) - Number(b.price)) || [];
+// Als het echt niet lukt, laten we een simpele tekst zien ipv een redirect
+// Zo zien we of de pagina zelf wel laadt
 ---
 
-
-<Layout title={`${product.title_h1} Vergelijken - Vind Refurbished`}>
-  <main class="max-w-5xl mx-auto px-4 py-12 text-gray-900">
-    <!-- Product Header -->
-    <div class="grid md:grid-cols-2 gap-12 mb-16 items-center">
-      <div class="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-center hover:shadow-lg transition-shadow duration-300">
-        <img 
-          src={"https://img.findrefurbished.com" + product.master_id + ".png"} 
-          alt={product.title_h1}
-          class="max-h-[400px] object-contain"
-          onerror="this.src='https://placehold.co/200x200?text=Geen+Foto'"
-        />
+<Layout title={product ? product.title_h1 : "Laden..."}>
+  <main class="max-w-5xl mx-auto px-4 py-12">
+    {!product ? (
+      <div class="text-center p-20 bg-gray-50 rounded-3xl border-2 border-dashed">
+        <h1 class="text-2xl font-bold text-gray-400">Product niet gevonden in de database</h1>
+        <p class="text-gray-400 mt-2 italic">Slug: {slug}</p>
+        <a href="/" class="mt-6 inline-block bg-blue-600 text-white px-6 py-2 rounded-xl font-bold">Terug naar zoeken</a>
       </div>
-      <div>
-        <nav class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">
-          Home / {product.brand}
-        </nav>
-        <h1 class="text-4xl md:text-5xl font-black text-gray-900 mb-6 leading-tight tracking-tight">{product.title_h1}</h1>
-        <div class="inline-block bg-blue-600 text-white px-8 py-4 rounded-2xl font-black text-3xl shadow-xl shadow-blue-100">
-          €{Number(product.min_price).toFixed(2)}
-        </div>
+    ) : (
+      <!-- Hier komt je volledige mooie product styling die we eerder hebben gemaakt -->
+      <div class="grid md:grid-cols-2 gap-12 mb-16 items-center">
+         <div class="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-center">
+            <img 
+              src={`https://img.findrefurbished.com{product.master_id}.png`} 
+              alt={product.title_h1}
+              class="max-h-[400px] object-contain"
+              onerror="this.src='https://placehold.co/200x200?text=Geen+Foto'"
+            />
+         </div>
+         <div>
+            <nav class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Home / {product.brand}</nav>
+            <h1 class="text-4xl md:text-5xl font-black text-gray-900 mb-6 leading-tight">{product.title_h1}</h1>
+            <div class="inline-block bg-blue-600 text-white px-8 py-4 rounded-2xl font-black text-3xl">
+              €{Number(product.min_price).toFixed(2)}
+            </div>
+         </div>
       </div>
-    </div>
-
-    <!-- Prijstabel -->
-    <h2 class="text-2xl font-black mb-8 tracking-tight italic">Beschikbare prijzen bij winkels</h2>
-    <div class="space-y-4">
-      {sortedOffers.map((offer) => (
-        <div class="bg-white border border-gray-100 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 hover:border-blue-500 transition-all shadow-sm">
-          <div class="flex-grow flex items-center gap-4">
-             <!-- Placeholder voor Merchant Logo -->
-             <div class="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center font-bold text-gray-300 text-xs uppercase">
-               {offer.merchant.charAt(0)}
-             </div>
-             <div>
-               <div class="font-black text-xl text-gray-800">{offer.merchant}</div>
-               <div class="text-[10px] uppercase font-bold text-gray-400 tracking-widest">{offer.condition}</div>
-             </div>
+      
+      <!-- Deals sectie... -->
+      <div class="space-y-4">
+        {product.offers?.sort((a, b) => a.price - b.price).map((offer) => (
+          <div class="bg-white border border-gray-100 p-6 rounded-2xl flex justify-between items-center shadow-sm">
+            <div class="font-black text-xl text-gray-800">{offer.merchant}</div>
+            <div class="flex items-center gap-6">
+              <div class="text-2xl font-black">€{Number(offer.price).toFixed(2)}</div>
+              <a href={offer.link} target="_blank" rel="nofollow" class="bg-gray-900 text-white px-6 py-2 rounded-xl font-bold text-sm">Bekijk deal</a>
+            </div>
           </div>
-          <div class="flex items-center gap-8">
-            <div class="text-2xl font-black">€{Number(offer.price).toFixed(2)}</div>
-            <a href={offer.link} target="_blank" rel="nofollow" class="bg-gray-900 text-white px-8 py-3 rounded-xl font-bold text-sm hover:bg-blue-600 transition-colors shadow-lg">
-              Bekijk deal
-            </a>
-          </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    )}
   </main>
 </Layout>
