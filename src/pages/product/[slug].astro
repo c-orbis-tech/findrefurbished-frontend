@@ -3,13 +3,14 @@ import Layout from '../../layouts/Layout.astro';
 
 const { slug } = Astro.params;
 
-// We gebruiken weer de veilige variabelen uit Vercel
-const host = import.meta.env.PUBLIC_MEILI_HOST;
-const key = import.meta.env.MEILI_SERVER_KEY || import.meta.env.PUBLIC_MEILI_SEARCH_KEY;
+// HYBRIDE METHODE: Gebruik Vercel-variabelen OF de hardcoded fallback
+const host = import.meta.env.PUBLIC_MEILI_HOST || "https://api.findrefurbished.com";
+const key = import.meta.env.MEILI_SERVER_KEY || import.meta.env.PUBLIC_MEILI_SEARCH_KEY || "Test543";
 
 let product = null;
 
 try {
+  // We gebruiken de 'oude' vertrouwde optel-methode voor de URL
   const response = await fetch(host + '/indexes/products/search', {
     method: 'POST',
     headers: {
@@ -23,19 +24,21 @@ try {
   });
 
   const data = await response.json();
-  if (data.hits && data.hits.length > 0) {
+  if (data && data.hits && data.hits.length > 0) {
     product = data.hits[0];
   }
 } catch (e) {
-  console.error("Fetch error:", e);
+  console.error("Fetch fout:", e.message);
 }
 
+// Als hij na de fetch nog steeds leeg is, redirect naar 404
 if (!product) {
   return Astro.redirect('/404');
 }
 
 const sortedOffers = product.offers?.sort((a, b) => Number(a.price) - Number(b.price)) || [];
 ---
+
 
 <Layout title={`${product.title_h1} Vergelijken - Vind Refurbished`}>
   <main class="max-w-5xl mx-auto px-4 py-12 text-gray-900">
