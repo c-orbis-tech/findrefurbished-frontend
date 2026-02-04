@@ -78,7 +78,7 @@ Astro.response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-
           
           <!-- PRODUCTFOTO FIX -->
           <Image 
-            src={`https://img.findrefurbished.com{product.master_id}.png`}
+            src={`https://img.findrefurbished.com/${product.master_id}.png`}
             alt={`Refurbished ${product.title_h1}`}
             width={400} 
             height={400}
