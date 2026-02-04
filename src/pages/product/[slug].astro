@@ -70,14 +70,6 @@ Astro.response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-
   description={seoDescription}
   schema={productSchema}
     >
-  <link 
-    rel="preload" 
-    as="image" 
-    slot="head" 
-    href={`https://img.findrefurbished.com/${product.master_id}.png`} 
-    fetchpriority="high" 
-    />
-
   <main class="max-w-5xl mx-auto px-4 py-12">
     {!product ? (
       <div class="p-10 text-center bg-gray-50 rounded-2xl border-2 border-dashed">
@@ -98,7 +90,8 @@ Astro.response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-
             quality="mid"
             class="max-h-[350px] w-auto object-contain"
             loading="eager" 
-            fetchpriority="high" 
+            fetchpriority="high"
+            decoding="async"
           />
 
         </div>
