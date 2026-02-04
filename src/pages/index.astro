@@ -154,9 +154,12 @@ import Layout from '../layouts/Layout.astro';
         container: '#hits',
         templates: {
           item: (hit) => {
-            const merchantName = (hit.offers && hit.offers.merchant) ? hit.offers.merchant : 'Shop';
+            // FIX: We pakken de merchant uit de eerste offer in de lijst
+            const merchantName = (hit.offers && hit.offers.length > 0) 
+              ? hit.offers[0].merchant 
+              : 'Shop';
+            
             const merchantSlug = merchantName.toLowerCase().replace(/\s+/g, '-');
-            // FIX: Pad naar de merchants map toegevoegd
             const logoUrl = `https://img.findrefurbished.com/merchants/${merchantSlug}.png`;
 
             return `
@@ -197,7 +200,7 @@ import Layout from '../layouts/Layout.astro';
           empty: '<div class="p-10 text-center text-gray-500 italic">❌ Geen producten gevonden.</div>'
         }
       })
-    ]);
+    ]); // Sluit de widgets array en de addWidgets functie
 
     search.start();
   }
