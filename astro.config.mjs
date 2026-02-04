@@ -8,4 +8,8 @@ export default defineConfig({
   adapter: vercel({
     webAnalytics: { enabled: true }
   }),
+  image: {
+    domains: ['img.findrefurbished.com'],
+    remotePatterns: [{ protocol: 'https' }],
+  },
 });
