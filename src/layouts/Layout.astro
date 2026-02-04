@@ -14,6 +14,10 @@ const { title, description, schema } = Astro.props;
     <link rel="preconnect" href="https://api.findrefurbished.com">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@meilisearch/instant-meilisearch/dist/instant-meilisearch.umd.min.js" as="script">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/instantsearch.js@4" as="script">
+
+
     <!-- 2. SEO & Meta -->
     {description && <meta name="description" content={description} />}
     {schema && <script type="application/ld+json" set:html={JSON.stringify(schema)} />}
