@@ -42,6 +42,12 @@ const { title, description, schema } = Astro.props;
       href="https://cdn.jsdelivr.net/npm/instantsearch.css@8.1.0/themes/satellite-min.css"
     />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <!-- Cloudflare Web Analytics -->
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "7a87fcce31704c13a0b71c696b09d892"}'
+    ></script><!-- End Cloudflare Web Analytics -->
   </head>
   <body class="bg-gray-50">
     <slot />
